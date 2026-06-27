@@ -80,6 +80,12 @@ stages:
   - job: SeleniumTests
     steps:
 
+    - script: |
+        echo "Installing Chrome..."
+        sudo apt-get update
+        sudo apt-get install -y google-chrome-stable
+        google-chrome --version
+
     # =========================
     # CHECKOUT QA REPO
     # =========================
