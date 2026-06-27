@@ -10,13 +10,24 @@ pool:
   vmImage: ubuntu-latest
 
 
+# =========================
+# REPOS EXTERNOS (QA REPO)
+# =========================
+resources:
+  repositories:
+  - repository: qaRepo
+    type: github
+    name: JesusMunoz98/AutoAzure
+    endpoint: github.com_JesusMunoz98
+
+
 stages:
 
-# =====================
-# BUILD STAGE
-# =====================
+# =========================
+# 1. BUILD STAGE (DEV REPO)
+# =========================
 - stage: Build
-  displayName: "Build App"
+  displayName: "Build Application"
   jobs:
   - job: BuildJob
     steps:
@@ -37,11 +48,12 @@ stages:
       inputs:
         PathtoPublish: '$(Build.ArtifactStagingDirectory)'
         ArtifactName: 'warfile'
+        publishLocation: 'Container'
 
 
-# =====================
-# DEPLOY STAGE
-# =====================
+# =========================
+# 2. DEPLOY STAGE (QA ENV)
+# =========================
 - stage: DeployQA
   displayName: "Deploy to QA"
   dependsOn: Build
@@ -54,21 +66,30 @@ stages:
 
     - script: |
         echo "Deploying WAR to QA environment..."
-        echo "Here you would deploy to Azure Web App / Tomcat / etc"
+        echo "Here you would deploy to Azure Web App / Tomcat / VM"
+        ls -la
 
 
-# =====================
-# TEST STAGE (QA AUTOMATION)
-# =====================
+# =========================
+# 3. TEST STAGE (QA AUTOMATION)
+# =========================
 - stage: Test
+  displayName: "Run Selenium + TestNG Tests"
   dependsOn: DeployQA
   jobs:
   - job: SeleniumTests
     steps:
 
-    # 👇 ESTE ES EL PUNTO CLAVE
-    - checkout: git://AutoAzure/qa-automation-repo
+    # =========================
+    # CHECKOUT QA REPO
+    # =========================
+    - checkout: qaRepo
 
-    - script: |
-        cd qa-automation-repo
-        mvn test
+    # =========================
+    # RUN TESTS
+    # =========================
+    - task: Maven@3
+      inputs:
+        mavenPomFile: 'pom.xml'
+        goals: 'clean test'
+        options: '-Denv=qa'
