@@ -1,0 +1,74 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+
+stages:
+
+# =====================
+# BUILD STAGE
+# =====================
+- stage: Build
+  displayName: "Build App"
+  jobs:
+  - job: BuildJob
+    steps:
+
+    - task: Maven@3
+      inputs:
+        mavenPomFile: 'pom.xml'
+        goals: 'package'
+        publishJUnitResults: true
+        testResultsFiles: '**/surefire-reports/TEST-*.xml'
+
+    - task: CopyFiles@2
+      inputs:
+        Contents: '**/*.war'
+        TargetFolder: '$(Build.ArtifactStagingDirectory)'
+
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'warfile'
+
+
+# =====================
+# DEPLOY STAGE
+# =====================
+- stage: DeployQA
+  displayName: "Deploy to QA"
+  dependsOn: Build
+  jobs:
+  - job: DeployJob
+    steps:
+
+    - download: current
+      artifact: warfile
+
+    - script: |
+        echo "Deploying WAR to QA environment..."
+        echo "Here you would deploy to Azure Web App / Tomcat / etc"
+
+
+# =====================
+# TEST STAGE (QA AUTOMATION)
+# =====================
+- stage: Test
+  dependsOn: DeployQA
+  jobs:
+  - job: SeleniumTests
+    steps:
+
+    # 👇 ESTE ES EL PUNTO CLAVE
+    - checkout: git://AutoAzure/qa-automation-repo
+
+    - script: |
+        cd qa-automation-repo
+        mvn test
